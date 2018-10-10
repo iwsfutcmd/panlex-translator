@@ -34,6 +34,20 @@ class BackTrn extends Component {
   }
 }
 
+class Def extends Component {
+  render() {
+    return (
+      <ul className="mdc-list mdc-list--dense">
+      {this.props.definitions.map((def, index) => (
+        <li key={index} className="mdc-list-item mdc-ripple-surface back-trn-item">
+          <span tabIndex="0">{def}</span>
+        </li>
+      ))}
+      </ul>
+    )
+  }
+}
+
 export default class TrnResult extends Component {
   openGraph = event => {this.props.onExprClick(event.target.dataset.index)}
   
@@ -47,7 +61,7 @@ export default class TrnResult extends Component {
               <summary className="trn-summary">
                 <li className="mdc-list-item mdc-ripple-surface" key={index}>
                   <button
-                    className="graph-button mdc-elevation--z3"
+                    className="pl-button graph-button mdc-elevation--z3"
                     // className="mdc-button mdc-button--raised"
                     onClick={this.openGraph}
                     alt={this.props.graphButtonAlt}
@@ -61,13 +75,26 @@ export default class TrnResult extends Component {
                     <BonBar bon={trn.trans_quality / maxBon}/>
                   </div>
                   <span lang={this.props.tagAl} tabIndex="0">{trn.txt}</span>
+                  {/* <button
+                    className="pl-button def-button mdc-elevation--z3"
+                    onClick={() => this.props.onDefClick(index)}
+                    data-index={index}
+                  >
+                    <span>def</span>
+                  </button> */}
                 </li>
               </summary>
-              {trn.backTranslations && 
+              {(trn.definitions && trn.definitions.length) ? 
                 <div className="back-trn-container">
-                  <BackTrn lang={this.props.tagDe} translations={trn.backTranslations}/>
-                  <li className="mdc-list-divider" role="separator"/>
+                  <Def definitions={trn.definitions}/>
                 </div>
+                : (
+                  trn.backTranslations && 
+                    <div className="back-trn-container">
+                      <BackTrn lang={this.props.tagDe} translations={trn.backTranslations}/>
+                      <li className="mdc-list-divider" role="separator"/>
+                    </div>
+                )
               }
             </details>
         )})}

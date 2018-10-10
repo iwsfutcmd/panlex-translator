@@ -55,7 +55,7 @@ class App extends Component {
       langDe: {},
       langAl: {},
       langs: [],
-      txt: sessionStorage.getItem("txt") || "",
+      txt: "",
       txtError: false,
       trnTxt: '',
       trnTrn: 0,
@@ -77,7 +77,10 @@ class App extends Component {
   componentDidMount() {
     this.cacheLvs().then(
       () => this.getInitialLangs(initialUids)).then(
-        () => {if (this.state.txt) {this.translate()}
+        () => {if (this.state.txt) {
+          this.translate();
+          this.txtInput.foundation_.activateFocus();
+        }
       });
     this.exprGraphDialog = new MDCDialog(document.querySelector('#expr-graph-dialog'));
     this.txtInput = new MDCTextField(document.querySelector('#txt-input-container'));
@@ -186,6 +189,11 @@ class App extends Component {
 
   getInitialLangs = (initialUids) => {
     let initialUidsSet = new Set(initialUids);
+    let urlParams = new URLSearchParams(window.location.search);
+    let uidDe = urlParams.get("langDe");
+    let uidAl = urlParams.get("langAl");
+    let langDe = this.state.lvCache.get(Number(localStorage.getItem("langDe")));
+    let langAl = this.state.lvCache.get(Number(localStorage.getItem("langAl")));
     let langs = [];
     let interfaceLv;
     this.state.lvCache.forEach((lv, lvId) => {
@@ -195,12 +203,19 @@ class App extends Component {
       if (lv.uid === initialInterfaceUid) {
         interfaceLv = lv;
       }
+      if (uidDe && lv.uid === uidDe) {
+        langDe = lv;
+      }
+      if (uidAl && lv.uid === uidAl) {
+        langAl = lv;
+      }
     })
     this.setState({
-      langDe: this.state.lvCache.get(Number(localStorage.getItem("langDe"))) || interfaceLv,
-      langAl: this.state.lvCache.get(Number(localStorage.getItem("langAl"))) || shuffle(langs)[0],
+      langDe: langDe || interfaceLv,
+      langAl: langAl || shuffle(langs)[0],
       langs: shuffle(langs),
-      interfaceLangvar: interfaceLv.id
+      interfaceLangvar: interfaceLv.id,
+      txt: urlParams.get("txt") || sessionStorage.getItem("txt") || "",
     });
     // this.getOtherNames(langs.map(lang => lang.id), interfaceLv.id)
   }
@@ -267,8 +282,13 @@ class App extends Component {
     if (this.state.txt.trim() && this.state.langDe.id && this.state.langAl.id) {
       return getTranslations(this.state.txt.trim(), this.state.langDe.id, this.state.langAl.id, this.state.trnTrn)
         .then((result) => {
+          let urlParams = new URLSearchParams();
+          urlParams.set("langDe", this.state.langDe.uid);
+          urlParams.set("langAl", this.state.langAl.uid);
+          urlParams.set("txt", this.state.txt.trim());
           let trnTxt = result.length ? result[0].txt : '';
-          this.setState({trnTxt, translations: result, loading: false, notFound: !result.length});
+          this.setState({trnTxt, translations: result, loading: false, notFound: !result.length, urlParams});
+          window.history.pushState({}, "", "?" + urlParams.toString())
         })
     } else {
       this.setState({loading: false});
@@ -281,6 +301,16 @@ class App extends Component {
       .then(result => {
         let translations = this.state.translations;
         translations[trnIndex].backTranslations = result;
+        this.setState({translations});
+      })
+  }
+
+  getDefinitions = trnIndex => {
+    let trn = this.state.translations[trnIndex];
+    query("/definition", {"expr_txt": trn.txt, "expr_langvar": trn.langvar, "langvar": trn.trans_langvar})
+      .then(result => {
+        let translations = this.state.translations;
+        translations[trnIndex].definitions = result.result.map(d => d.txt);
         this.setState({translations});
       })
   }
@@ -501,6 +531,7 @@ class App extends Component {
                     translations={this.state.translations}
                     onExprClick={this.handleTrnExprClick}
                     onTrnToggle={this.backTranslate}
+                    onDefClick={this.getDefinitions}
                     graphButtonAlt={[this.getLabel('trn'), this.getLabel('viz')].join(' — ')}
                     tagDe={this.getTag(this.state.langDe.id)}
                     tagAl={this.getTag(this.state.langAl.id)}

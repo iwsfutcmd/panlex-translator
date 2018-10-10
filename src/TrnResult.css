@@ -24,15 +24,23 @@
   padding-inline-end: 24px !important;
 }
 
-.graph-button {
+.pl-button {
   margin: unset;
-  margin-inline-end: 12px;
   padding: 4px;
   cursor: pointer;
   /* user-select: none; */
   border: none;
   background-color: white;
   display: flex;
+}
+
+.graph-button {
+  margin-inline-end: 12px;
+}
+
+.def-button {
+  margin-inline-start: auto;
+  block-size: 32px;
 }
 
 @media (max-width: 840px) {
