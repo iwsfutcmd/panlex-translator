@@ -72,6 +72,7 @@ class App extends Component {
 
   componentWillMount() {
     window.addEventListener('resize', () => this.setState({compact: window.innerWidth <= compactWidth}));
+    window.onpopstate = e => window.location.reload();
   }
 
   componentDidMount() {
