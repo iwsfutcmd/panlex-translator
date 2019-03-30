@@ -16,20 +16,41 @@ function wilsonScore(score, maxScore, confidence) {
   return (left - right) / under;
 }
 
-function query(ep, params) {
-  let url = URLBASE + ep
-  return(fetch(url, {
-    method: 'POST',
-    headers: new Headers({
-      'x-app-name': `${pkg.name}/${pkg.version}`,
-      'content-type': 'application/json',
-    }),
-    body: JSON.stringify(params),
-  })
-  .then((response) => response.json()));
+function buildParams(params) {
+  let urlParams = new URLSearchParams();
+  for (let key in params) {
+    if (Array.isArray(params[key])) {
+      params[key].forEach(v => urlParams.append(key, v));
+    } else {
+      urlParams.append(key, params[key]);
+    }
+  }
+  return(urlParams);
 }
 
-function getTranslations(txt, uidDe, uidAl, distance = 0) {
+function query(ep, params, get=false) {
+  let url = new URL(URLBASE + ep);
+  let headers = new Headers({
+    'x-app-name': `${pkg.name}/${pkg.version}`,
+    'content-type': 'application/json',
+  });
+  if (get) {
+    let urlParams = buildParams(params);
+    url.search = urlParams;
+    return(fetch(url, {
+      method: 'GET',
+      headers,
+    }).then((response) => {console.log(response); return(response.json())}));
+  } else {
+    return(fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    }).then((response) => response.json()));
+  }
+}
+
+function getTranslations(txt, uidDe, uidAl, distance = 0, exact = true) {
   let queryOne = {
     include: ['trans_quality', 'trans_txt', 'trans_langvar'],
     sort: 'trans_quality desc',
@@ -37,17 +58,21 @@ function getTranslations(txt, uidDe, uidAl, distance = 0) {
   if (Array.prototype.every.call(txt, v => typeof v === 'number')) {
     queryOne.trans_expr = txt
   } else {
-    queryOne.trans_txt = txt
-    if (typeof uidDe === 'number') {
-      queryOne.trans_langvar = uidDe
+    if (exact) {
+      queryOne.trans_txt = txt;
     } else {
-      queryOne.trans_uid = uidDe
+      queryOne.trans_txt_degr = txt;
+    }
+    if (typeof uidDe === 'number') {
+      queryOne.trans_langvar = uidDe;
+    } else {
+      queryOne.trans_uid = uidDe;
     }
   }
   if (typeof uidAl === 'number') {
-    queryOne.langvar = uidAl
+    queryOne.langvar = uidAl;
   } else {
-    queryOne.uid = uidAl
+    queryOne.uid = uidAl;
   }
   let queryTwo = Object.assign({trans_distance: 2}, queryOne);
   switch (distance) {

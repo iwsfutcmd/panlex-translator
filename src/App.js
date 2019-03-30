@@ -67,21 +67,24 @@ class App extends Component {
       pathDirect: false,
       labels: labelsToTranslate.reduce((obj, v) => {obj[v] = v; return obj;}, {}),
       notFound: false,
+      exact: true,
     }
   }
 
   componentWillMount() {
     window.addEventListener('resize', () => this.setState({compact: window.innerWidth <= compactWidth}));
+    window.onpopstate = e => this.setFromParams();
   }
 
   componentDidMount() {
     this.cacheLvs().then(
       () => this.getInitialLangs(initialUids)).then(
-        () => {if (this.state.txt) {
-          this.translate();
-          this.txtInput.foundation_.activateFocus();
-        }
-      });
+        () => this.setFromParams()).then(
+          () => {if (this.state.txt) {
+            // this.translate();
+            this.txtInput.foundation_.activateFocus();
+          }
+        });
     this.exprGraphDialog = new MDCDialog(document.querySelector('#expr-graph-dialog'));
     this.txtInput = new MDCTextField(document.querySelector('#txt-input-container'));
   }
@@ -131,7 +134,7 @@ class App extends Component {
       'name_expr',
       'name_expr_txt_degr',
       'var_code',
-     ]}).then(
+     ]}, true).then(
       r => {
         let lvCache = new Map();
         r.result.forEach(lv => {lvCache.set(lv.id, lv)});
@@ -187,11 +190,33 @@ class App extends Component {
 
   fromLvCache = lvId => (this.state.lvCache.get(lvId) || {})
 
-  getInitialLangs = (initialUids) => {
-    let initialUidsSet = new Set(initialUids);
+  setFromParams = () => {
     let urlParams = new URLSearchParams(window.location.search);
     let uidDe = urlParams.get("langDe");
     let uidAl = urlParams.get("langAl");
+    let langDe = this.state.langDe;
+    let langAl = this.state.langAl;
+    this.state.lvCache.forEach((lv, lvId) => {
+      if (uidDe && lv.uid === uidDe) {
+        langDe = lv;
+      }
+      if (uidAl && lv.uid === uidAl) {
+        langAl = lv;
+      }
+    })
+    this.setState({
+      langDe,
+      langAl,
+      txt: urlParams.get("txt") || this.state.txt,
+      trnTrn: urlParams.get("trnTrn") || this.state.trnTrn,
+    }, this.translate)
+  }
+
+  getInitialLangs = (initialUids) => {
+    let initialUidsSet = new Set(initialUids);
+    // let urlParams = new URLSearchParams(window.location.search);
+    // let uidDe = urlParams.get("langDe");
+    // let uidAl = urlParams.get("langAl");
     let langDe = this.state.lvCache.get(Number(localStorage.getItem("langDe")));
     let langAl = this.state.lvCache.get(Number(localStorage.getItem("langAl")));
     let langs = [];
@@ -203,19 +228,19 @@ class App extends Component {
       if (lv.uid === initialInterfaceUid) {
         interfaceLv = lv;
       }
-      if (uidDe && lv.uid === uidDe) {
-        langDe = lv;
-      }
-      if (uidAl && lv.uid === uidAl) {
-        langAl = lv;
-      }
+      // if (uidDe && lv.uid === uidDe) {
+      //   langDe = lv;
+      // }
+      // if (uidAl && lv.uid === uidAl) {
+      //   langAl = lv;
+      // }
     })
     this.setState({
       langDe: langDe || interfaceLv,
       langAl: langAl || shuffle(langs)[0],
       langs: shuffle(langs),
       interfaceLangvar: interfaceLv.id,
-      txt: urlParams.get("txt") || sessionStorage.getItem("txt") || "",
+      txt: sessionStorage.getItem("txt") || "",
     });
     // this.getOtherNames(langs.map(lang => lang.id), interfaceLv.id)
   }
@@ -280,15 +305,21 @@ class App extends Component {
     } catch (e) {}
     this.setState({loading: true});
     if (this.state.txt.trim() && this.state.langDe.id && this.state.langAl.id) {
-      return getTranslations(this.state.txt.trim(), this.state.langDe.id, this.state.langAl.id, this.state.trnTrn)
+      return getTranslations(this.state.txt.trim(), this.state.langDe.id, this.state.langAl.id, this.state.trnTrn, this.state.exact)
         .then((result) => {
           let urlParams = new URLSearchParams();
           urlParams.set("langDe", this.state.langDe.uid);
           urlParams.set("langAl", this.state.langAl.uid);
           urlParams.set("txt", this.state.txt.trim());
+          if (this.state.trnTrn) {
+            urlParams.set("trnTrn", this.state.trnTrn)
+          }
+          let paramString = "?" + urlParams.toString();
           let trnTxt = result.length ? result[0].txt : '';
           this.setState({trnTxt, translations: result, loading: false, notFound: !result.length, urlParams});
-          window.history.pushState({}, "", "?" + urlParams.toString())
+          if (paramString !== window.location.search) {
+            window.history.pushState({}, "", paramString)
+          }
         })
     } else {
       this.setState({loading: false});
